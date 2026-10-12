@@ -88,6 +88,35 @@ h2{font:800 24px/1.1 "Barlow Condensed","Arial Narrow",sans-serif;margin:18px 16
 .actions a,.actions button{flex:1;text-align:center;padding:11px 0;border-radius:8px;font-weight:600;border:1px solid var(--line)}
 .actions a{background:var(--chalk);color:var(--field);border-color:var(--chalk)}
 .warn{font-size:12.5px;color:var(--dim);margin-top:8px}
+.hero{display:block;width:100%;text-align:left;padding:12px 16px 14px;border-bottom:1px solid var(--line)}
+.hero .thumb{width:100%;border-radius:8px}
+.hero .ttl{font-size:19px;margin-top:10px;-webkit-line-clamp:3}
+.hero .rank{position:absolute;left:10px;top:6px;font-size:56px;text-shadow:0 2px 10px rgba(0,0,0,.7)}
+.playicon{position:absolute;inset:0;display:grid;place-items:center}
+.playicon span{width:64px;height:64px;border-radius:50%;background:rgba(15,28,46,.82);display:grid;place-items:center}
+.playicon span:after{content:"";border-left:20px solid var(--chalk);border-top:12px solid transparent;border-bottom:12px solid transparent;margin-left:5px}
+.hero.watched{opacity:.42}
+.post{border-bottom:1px solid var(--line);padding:14px 16px 12px}
+.phead{display:flex;align-items:center;flex-wrap:wrap;gap:4px 8px;font-size:13.5px;color:var(--dim)}
+.phead b{color:var(--chalk);font-weight:600}
+.avatar{width:32px;height:32px;border-radius:50%;background:var(--deck);border:1px solid var(--line);display:grid;place-items:center;font:800 16px/1 "Barlow Condensed","Arial Narrow",sans-serif;color:var(--amber);flex:none}
+.ptext{margin:8px 0 10px;font-size:16px;line-height:1.35}
+.post.watched .ptext{color:var(--dim)}
+.media{position:relative;width:100%;aspect-ratio:16/9;background:#000;border-radius:10px;overflow:hidden}
+.media.tall{width:auto;height:min(78vh,640px);aspect-ratio:9/16;margin:0 auto}
+.media iframe,.media video{position:absolute;inset:0;width:100%;height:100%;border:0;display:block;background:#000}
+.tap{position:absolute;inset:0;width:100%;height:100%}
+.tap img{width:100%;height:100%;object-fit:cover;display:block}
+.pfoot{display:flex;justify-content:space-between;gap:12px;margin-top:8px;font-size:13px;color:var(--dim)}
+.pfoot a{color:var(--chalk);font-weight:600;flex:none}
+.viral{margin:12px 12px 6px;border:2px solid var(--amber);border-radius:12px;overflow:hidden}
+.viral h3{margin:0;padding:10px 16px 0;font:800 24px/1 "Barlow Condensed","Arial Narrow",sans-serif;color:var(--amber)}
+.viral .post{border:0}
+.newpill{position:fixed;top:calc(env(safe-area-inset-top,0px) + 132px);left:50%;transform:translateX(-50%);z-index:6;background:var(--amber);color:var(--field);font-weight:700;padding:8px 18px;border-radius:999px;display:none;box-shadow:0 4px 14px rgba(0,0,0,.45)}
+.newpill.show{display:block}
+.seg{flex-wrap:wrap;align-items:center}
+.seg .chip{font-family:Barlow;font-size:13px;padding:5px 12px}
+.more{padding:20px 16px 40px;text-align:center;color:var(--dim);font-size:14px}
 @media (max-width:420px){.play{grid-template-columns:34px 112px 1fr;gap:10px;padding:12px}.thumb{width:112px}.rank{font-size:32px}.rank.top{font-size:40px}.ttl{font-size:14.5px}}
 </style>
 </head>
@@ -102,6 +131,7 @@ h2{font:800 24px/1.1 "Barlow Condensed","Arial Narrow",sans-serif;margin:18px 16
     <button class="tab" role="tab" data-act="view" data-v="highlights" aria-selected="false">Game highlights</button>
   </div>
 </header>
+<button class="newpill" id="newpill" data-act="shownew">Show new clips</button>
 <main id="main"></main>
 
 <div class="sheet" id="sheet" data-act="closebg">
@@ -115,20 +145,20 @@ h2{font:800 24px/1.1 "Barlow Condensed","Arial Narrow",sans-serif;margin:18px 16
 
 <script>
 const LEAGUES=[
-  {k:'nfl',n:'NFL',s:'football',l:'nfl',q:''},
-  {k:'cfb',n:'College football',s:'football',l:'college-football',q:'&groups=80&limit=300'},
-  {k:'nba',n:'NBA',s:'basketball',l:'nba',q:''},
-  {k:'cbb',n:'College hoops',s:'basketball',l:'mens-college-basketball',q:'&groups=50&limit=300'},
-  {k:'mlb',n:'MLB',s:'baseball',l:'mlb',q:''},
-  {k:'nhl',n:'NHL',s:'hockey',l:'nhl',q:''}
+  {k:'nfl',n:'NFL',s:'football',l:'nfl',q:'',close:8},
+  {k:'cfb',n:'College football',s:'football',l:'college-football',q:'&groups=80&limit=300',close:8},
+  {k:'nba',n:'NBA',s:'basketball',l:'nba',q:'',close:6},
+  {k:'cbb',n:'College hoops',s:'basketball',l:'mens-college-basketball',q:'&groups=50&limit=300',close:6},
+  {k:'mlb',n:'MLB',s:'baseball',l:'mlb',q:'',close:2},
+  {k:'nhl',n:'NHL',s:'hockey',l:'nhl',q:'',close:1}
 ];
 const LG=Object.fromEntries(LEAGUES.map(l=>[l.k,l]));
-const SUBS=[['sports','all'],['nfl','nfl'],['CFB','cfb'],['nba','nba'],['CollegeBasketball','cbb'],['baseball','mlb'],['hockey','nhl']];
+const API=L=>`https://site.api.espn.com/apis/site/v2/sports/${L.s}/${L.l}`;
 const REFRESH_MIN=5;
 
 const store={get(k,d){try{const v=localStorage.getItem(k);return v?JSON.parse(v):d}catch(e){return d}},set(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}};
-const S={view:'trending',tsub:'plays',league:'all',hl:store.get('nr_hl','nfl'),date:new Date(),hideSeen:store.get('nr_hide',false),
-  plays:[],talk:[],news:[],redditFail:false,newsFail:false,games:{},vids:{},open:null,last:null};
+const S={view:'trending',tsub:'plays',league:'all',hl:store.get('nr_hl','nfl'),date:new Date(),hideSeen:store.get('nr_hide',false),autoplay:store.get('nr_auto',true),
+  yt:[],reddit:[],talk:[],espn:[],news:[],feed:null,feedFail:false,espnFail:false,newsFail:false,games:{},vids:{},open:null,last:null,loading:true};
 let seen=store.get('nr_seen',{}),known=store.get('nr_known',{});
 const firstRun=!Object.keys(known).length;
 (function prune(){const cut=Date.now()-4*864e5;for(const o of [seen,known])for(const k in o)if(o[k]<cut&&o[k]!==0)delete o[k];})();
@@ -136,26 +166,27 @@ const firstRun=!Object.keys(known).length;
 const $=s=>document.querySelector(s);
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const fmtN=n=>n>=1e6?(n/1e6).toFixed(1)+'M':n>=1e3?(n/1e3).toFixed(n>=1e4?0:1)+'k':String(n);
-const ago=t=>{const m=Math.max(1,Math.round((Date.now()-t)/6e4));return m<60?m+'m ago':m<1440?Math.round(m/60)+'h ago':Math.round(m/1440)+'d ago'};
+const ago=t=>{if(!t)return '';const m=Math.max(1,Math.round((Date.now()-t)/6e4));return m<60?m+'m ago':m<1440?Math.round(m/60)+'h ago':Math.round(m/1440)+'d ago'};
 const ymd=d=>d.getFullYear()+String(d.getMonth()+1).padStart(2,'0')+String(d.getDate()).padStart(2,'0');
 const isToday=d=>ymd(d)===ymd(new Date());
-const dur=s=>s?Math.floor(s/60)+':'+String(s%60).padStart(2,'0'):'';
+const dur=s=>s?Math.floor(s/60)+':'+String(Math.round(s%60)).padStart(2,'0'):'';
 
 async function getJSON(url,ms=12000){
   const c=new AbortController();const t=setTimeout(()=>c.abort(),ms);
-  try{const r=await fetch(url,{signal:c.signal});if(!r.ok)throw new Error(r.status);return await r.json()}finally{clearTimeout(t)}
+  try{const r=await fetch(url,{signal:c.signal,cache:'no-store'});if(!r.ok)throw new Error(r.status);return await r.json()}finally{clearTimeout(t)}
 }
+async function pool(tasks,n=6){const out=[];let i=0;await Promise.all(Array.from({length:n},async()=>{while(i<tasks.length){const k=i++;try{out[k]={ok:true,v:await tasks[k]()}}catch(e){out[k]={ok:false}}}}));return out}
 function busy(on){$('#status').classList.toggle('busy',on);if(on)$('#stxt').textContent='Checking';else updStatus()}
 function updStatus(){$('#stxt').textContent=S.last?'Updated '+S.last.toLocaleTimeString([],{hour:'numeric',minute:'2-digit'}):'Not loaded'}
 function markKnown(id){if(!(id in known))known[id]=firstRun?0:Date.now();}
 const isNew=id=>known[id]&&Date.now()-known[id]<3*36e5&&!seen[id];
 function markSeen(id){seen[id]=Date.now();store.set('nr_seen',seen)}
 
-/* ---------- Trending (Reddit = what the internet is passing around, ESPN = headlines) ---------- */
+/* ---------- Source 1: crawler feed (YouTube + Reddit), same-origin file written by GitHub Actions ---------- */
 function cleanDomain(d){return (d||'').toLowerCase().replace(/^(www|m|mobile|vm|vt)\./,'')}
 function sourceOf(d){
   d=cleanDomain(d);
-  if(d==='x.com'||d==='twitter.com'||d==='fxtwitter.com'||d==='vxtwitter.com')return 'X';
+  if(['x.com','twitter.com','fxtwitter.com','vxtwitter.com'].includes(d))return 'X';
   if(d.endsWith('tiktok.com'))return 'TikTok';
   if(d.endsWith('instagram.com'))return 'Instagram';
   if(d.endsWith('youtube.com')||d==='youtu.be')return 'YouTube';
@@ -164,100 +195,138 @@ function sourceOf(d){
   return d.replace(/\.(com|net|org|tv|co)$/,'');
 }
 const VIDEO_SRC=['X','TikTok','Instagram','YouTube','Streamable'];
-const VIDEO_DOM=['streamff.com','streamin.one','streamin.me','dubz.link','dubz.co','clips.twitch.tv','streamja.com','juststream.live'];
-function redditVideo(p){return p.secure_media?.reddit_video||p.media?.reddit_video||p.crosspost_parent_list?.[0]?.secure_media?.reddit_video||null}
-function thumbOf(p){
-  const im=p.preview?.images?.[0];
-  if(im){const r=im.resolutions||[];const pick=r.find(x=>x.width>=320)||im.source;if(pick?.url)return pick.url}
-  return /^https?:/.test(p.thumbnail||'')?p.thumbnail:'';
-}
-async function loadTrending(){
-  const res=await Promise.allSettled(SUBS.map(([sub,lg])=>getJSON(`https://www.reddit.com/r/${sub}/top.json?t=day&limit=75&raw_json=1`).then(j=>({sub,lg,posts:j.data.children.map(c=>c.data)}))));
-  const byUrl=new Map();let ok=0;
-  for(const r of res){
-    if(r.status!=='fulfilled')continue;ok++;
-    const {sub,lg,posts}=r.value;const max=Math.max(1,...posts.map(p=>p.score));
-    for(const p of posts){
-      if(p.stickied||p.over_18)continue;
-      const rv=redditVideo(p);const src=sourceOf(p.domain);const d=cleanDomain(p.domain);
-      const video=!!rv||p.is_video||/video/.test(p.post_hint||'')||VIDEO_SRC.includes(src)||VIDEO_DOM.some(x=>d.endsWith(x));
-      const heat=(p.score/max)*0.6+Math.min(1,Math.log10(p.score+1)/5)*0.4;
-      const it={id:'r_'+p.id,title:p.title,score:p.score,comments:p.num_comments,url:p.url_overridden_by_dest||p.url,
-        permalink:'https://www.reddit.com'+p.permalink,src,lg,sub,created:p.created_utc*1000,thumb:thumbOf(p),rv,video,heat,
-        dur:rv?.duration};
-      const key=it.url&&!/reddit\.com\/r\//.test(it.url)?it.url:it.id;
-      const prev=byUrl.get(key);
-      if(!prev||(prev.lg==='all'&&lg!=='all')||(prev.lg===lg&&prev.heat<heat))byUrl.set(key,prev&&prev.lg!=='all'&&lg==='all'?prev:it);
+const VIDEO_DOM=['streamff.com','streamin.one','streamin.me','dubz.link','dubz.co','clips.twitch.tv','streamja.com'];
+async function loadFeed(){
+  try{
+    const j=await getJSON('data/trending.json?t='+Date.now());
+    S.feed=j;S.feedFail=false;
+    S.yt=(j.youtube||[]).map(v=>({...v,src:'YouTube'}));
+    const ytIds=new Set(S.yt.map(v=>v.vid));
+    const rd=[],byUrl=new Map();
+    const maxBy={};(j.reddit||[]).forEach(p=>maxBy[p.sub]=Math.max(maxBy[p.sub]||1,p.score));
+    for(const p of j.reddit||[]){
+      const src=sourceOf(p.domain),d=cleanDomain(p.domain);
+      const video=!!p.rv||p.is_video||/video/.test(p.hint||'')||VIDEO_SRC.includes(src)||VIDEO_DOM.some(x=>d.endsWith(x));
+      const it={...p,src,video,heat:(p.score/maxBy[p.sub])*0.6+Math.min(1,Math.log10(p.score+1)/5)*0.4};
+      const yid=(it.url.match(/(?:youtu\.be\/|[?&]v=|shorts\/)([\w-]{11})/)||[])[1];if(yid&&ytIds.has(yid))continue;
+      const key=it.url&&!/reddit\.com\/r\//.test(it.url)?it.url:it.id;const prev=byUrl.get(key);
+      if(!prev||(prev.lg==='all'&&it.lg!=='all')||(prev.lg===it.lg&&prev.heat<it.heat))byUrl.set(key,it);
     }
-  }
-  S.redditFail=ok===0;
-  const all=[...byUrl.values()];all.forEach(i=>markKnown(i.id));
-  S.plays=all.filter(i=>i.video).sort((a,b)=>b.heat-a.heat);
-  S.talk=all.filter(i=>!i.video).sort((a,b)=>b.comments-a.comments);
-}
-async function loadNews(){
-  const res=await Promise.allSettled(LEAGUES.map(L=>getJSON(`https://site.api.espn.com/apis/site/v2/sports/${L.s}/${L.l}/news?limit=15`).then(j=>(j.articles||[]).map(a=>({
-    id:'e_'+(a.id||a.headline),title:a.headline,desc:a.description,url:a.links?.web?.href||'',thumb:a.images?.[0]?.url||'',lg:L.k,created:Date.parse(a.published)||0,src:'ESPN'})))));
-  const seenT=new Set();const out=[];
-  for(const r of res)if(r.status==='fulfilled')for(const a of r.value){if(seenT.has(a.title))continue;seenT.add(a.title);markKnown(a.id);out.push(a)}
-  S.newsFail=res.every(r=>r.status!=='fulfilled');
-  S.news=out.sort((a,b)=>b.created-a.created);
+    for(const it of byUrl.values())rd.push(it);
+    S.reddit=rd.filter(i=>i.video).sort((a,b)=>b.heat-a.heat);
+    S.talk=rd.filter(i=>!i.video).sort((a,b)=>b.comments-a.comments);
+    [...S.yt,...rd].forEach(i=>markKnown(i.id));
+  }catch(e){S.feedFail=true}
 }
 
-/* ---------- Game highlights (official ESPN clips) ---------- */
+/* ---------- Source 2: ESPN official clips from recent games, live from the browser ---------- */
+function parseGame(ev){
+  const c=ev.competitions?.[0]||{};const t=[...(c.competitors||[])].sort((a,b)=>a.homeAway==='away'?-1:1);
+  return {id:ev.id,state:ev.status?.type?.state||'pre',detail:ev.status?.type?.shortDetail||'',date:Date.parse(ev.date)||0,
+    teams:t.map(x=>({ab:x.team?.abbreviation||x.team?.shortDisplayName,name:x.team?.shortDisplayName||x.team?.displayName,logo:x.team?.logo||'',score:x.score,win:x.winner,rank:x.curatedRank?.current<=25?x.curatedRank.current:null}))};
+}
+function vidItem(v,extra){
+  const id='v_'+v.id;markKnown(id);
+  return {id,title:v.headline,thumb:v.thumbnail,mp4:v.links?.source?.HD?.href||v.links?.source?.href||v.links?.mobile?.source?.href||'',
+    url:v.links?.web?.href||'',dur:v.duration,src:'ESPN',created:Date.parse(v.originalPublishDate||v.lastModified)||0,...extra};
+}
+async function loadEspnPlays(){
+  const days=[new Date(),new Date(Date.now()-864e5)];
+  const sb=await pool(LEAGUES.flatMap(L=>days.map(d=>async()=>({L,evs:(await getJSON(`${API(L)}/scoreboard?dates=${ymd(d)}`)).events||[]}))),8);
+  const games=[];
+  for(const r of sb){if(!r.ok)continue;const {L,evs}=r.v;
+    for(const ev of evs){const g=parseGame(ev);if(g.state==='pre')continue;
+      const [a,b]=g.teams;const ranks=g.teams.map(t=>t.rank).filter(Boolean);
+      const margin=Math.abs((+a?.score||0)-(+b?.score||0));
+      g.interest=1+(ranks.length?(26-Math.min(...ranks))/25:0)+(g.state==='in'?1:0)+(margin<=L.close?0.5:0)+(L.k==='nfl'?0.4:0);
+      g.L=L;g.label=a&&b?`${a.ab} ${a.score}, ${b.ab} ${b.score}`:'';games.push(g)}}
+  const pick=[];for(const L of LEAGUES)pick.push(...games.filter(g=>g.L===L).sort((x,y)=>y.interest-x.interest).slice(0,6));
+  const sums=await pool(pick.map(g=>async()=>({g,j:await getJSON(`${API(g.L)}/summary?event=${g.id}`)})),8);
+  const out=new Map();
+  for(const r of sums){if(!r.ok)continue;const {g,j}=r.v;
+    (j.videos||[]).forEach((v,i)=>{const it=vidItem(v,{lg:g.L.k,game:g.label});if(!it.created)it.created=g.date;
+      const h=Math.max(0,(Date.now()-it.created)/36e5);it.heat=g.interest*(1/(1+h/18))*(i<3?1.15:1);
+      if(!out.has(it.id))out.set(it.id,it)})}
+  S.espnFail=!sb.some(r=>r.ok);
+  if(out.size||!S.espn.length)S.espn=[...out.values()].sort((a,b)=>b.heat-a.heat);
+}
+async function loadNews(){
+  const res=await pool(LEAGUES.map(L=>async()=>((await getJSON(`${API(L)}/news?limit=15`)).articles||[]).map(a=>({
+    id:'e_'+(a.id||a.headline),title:a.headline,desc:a.description,url:a.links?.web?.href||'',thumb:a.images?.[0]?.url||'',lg:L.k,created:Date.parse(a.published)||0,src:'ESPN'}))));
+  const seenT=new Set(),out=[];
+  for(const r of res)if(r.ok)for(const a of r.v){if(seenT.has(a.title))continue;seenT.add(a.title);markKnown(a.id);out.push(a)}
+  S.newsFail=!res.some(r=>r.ok);if(out.length)S.news=out.sort((a,b)=>b.created-a.created);
+}
+
+/* ---------- Game highlights tab ---------- */
 async function loadGames(force){
   const L=LG[S.hl],key=S.hl+'_'+ymd(S.date);
   if(S.games[key]&&!force)return;
-  try{
-    const j=await getJSON(`https://site.api.espn.com/apis/site/v2/sports/${L.s}/${L.l}/scoreboard?dates=${ymd(S.date)}${L.q}`);
-    const order={in:0,post:1,pre:2};
-    S.games[key]=(j.events||[]).map(ev=>{
-      const c=ev.competitions?.[0]||{};const t=(c.competitors||[]).sort((a,b)=>a.homeAway==='away'?-1:1);
-      return {id:ev.id,state:ev.status?.type?.state||'pre',detail:ev.status?.type?.shortDetail||'',
-        teams:t.map(x=>({ab:x.team?.abbreviation||x.team?.shortDisplayName,name:x.team?.shortDisplayName||x.team?.displayName,logo:x.team?.logo||'',score:x.score,win:x.winner,rank:x.curatedRank?.current<=25?x.curatedRank.current:null}))};
-    }).sort((a,b)=>order[a.state]-order[b.state]);
-  }catch(e){S.games[key]='error'}
+  try{const j=await getJSON(`${API(L)}/scoreboard?dates=${ymd(S.date)}${L.q}`);const order={in:0,post:1,pre:2};
+    S.games[key]=(j.events||[]).map(parseGame).sort((a,b)=>order[a.state]-order[b.state]||a.date-b.date)}
+  catch(e){S.games[key]='error'}
 }
 async function loadVids(gid,force){
   if(S.vids[gid]&&!force)return;
-  const L=LG[S.hl];
-  try{
-    const j=await getJSON(`https://site.api.espn.com/apis/site/v2/sports/${L.s}/${L.l}/summary?event=${gid}`);
-    S.vids[gid]=(j.videos||[]).map(v=>{const id='v_'+v.id;markKnown(id);return {id,title:v.headline,thumb:v.thumbnail,
-      mp4:v.links?.source?.HD?.href||v.links?.source?.href||v.links?.mobile?.source?.href||'',url:v.links?.web?.href||'',dur:v.duration}});
-  }catch(e){S.vids[gid]='error'}
+  try{const j=await getJSON(`${API(LG[S.hl])}/summary?event=${gid}`);S.vids[gid]=(j.videos||[]).map(v=>vidItem(v,{lg:S.hl}))}
+  catch(e){S.vids[gid]='error'}
 }
+
+/* ---------- Ranking: mix the sources so no single one buries the others ---------- */
+function topPlays(){
+  const fl=it=>(S.league==='all'||it.lg===S.league)&&!(S.hideSeen&&seen[it.id]);
+  const lists=[S.yt.filter(fl),S.espn.filter(fl),S.reddit.filter(fl)].filter(l=>l.length);
+  const out=[],idx=lists.map(()=>0);
+  while(out.length<30&&lists.some((l,i)=>idx[i]<l.length))for(let i=0;i<lists.length&&out.length<30;i++)if(idx[i]<lists[i].length)out.push(lists[i][idx[i]++]);
+  return out;
+}
+const allItems=()=>[...S.yt,...S.reddit,...S.espn,...S.talk,...S.news,...Object.values(S.vids).filter(Array.isArray).flat()];
 
 /* ---------- Render ---------- */
 function chips(list,cur,act){return `<div class="bar">${list.map(([k,n])=>`<button class="chip" data-act="${act}" data-v="${k}" aria-pressed="${k===cur}">${esc(n)}</button>`).join('')}</div>`}
+function stat(it){return it.views!=null?`<span>${fmtN(it.views)} views</span>`:it.score!=null?`<span>${fmtN(it.score)} upvotes</span>`:it.game?`<span>${esc(it.game)}</span>`:''}
 function metaRow(it,extra=''){
-  return `<div class="meta">${isNew(it.id)?'<span class="new">New</span>':''}<span class="src">${esc(it.src)}</span>${it.lg&&it.lg!=='all'?`<span>${esc(LG[it.lg]?.n)}</span>`:''}${extra}<span>${ago(it.created)}</span></div>`;
+  const who=it.channel||(it.src==='ESPN'?'ESPN':it.src);
+  return `<div class="meta">${isNew(it.id)?'<span class="new">New</span>':''}<span class="src">${esc(who)}</span>${it.lg&&it.lg!=='all'?`<span>${esc(LG[it.lg]?.n)}</span>`:''}${extra}<span>${ago(it.created)}</span></div>`;
 }
-function thumbHTML(src,d){return `<div class="thumb">${src?`<img src="${esc(src)}" alt="" loading="lazy" referrerpolicy="no-referrer">`:''}${d?`<span class="dur">${dur(d)}</span>`:''}</div>`}
+function thumbHTML(src,d,play){return `<div class="thumb">${src?`<img src="${esc(src)}" alt="" loading="lazy" referrerpolicy="no-referrer">`:''}${d?`<span class="dur">${dur(d)}</span>`:''}${play?'<div class="playicon"><span></span></div>':''}</div>`}
+function sourceNote(){
+  const f=S.feed,parts=[];
+  if(S.yt.length)parts.push(`${S.yt.length} YouTube`);
+  if(S.espn.length)parts.push(`${S.espn.length} ESPN`);
+  if(S.reddit.length)parts.push(`${S.reddit.length} Reddit`);
+  let t=parts.length?`Clips from the last 48 hours: ${parts.join(', ')}.`:'';
+  if(f?.updated)t+=` Viral feed checked ${ago(Date.parse(f.updated))}.`;
+  else if(!S.loading)t+=' The viral YouTube and Reddit feed starts after the crawler\'s first run.';
+  return t;
+}
 function render(){
+  resetFeed();
   document.querySelectorAll('.tab').forEach(t=>t.setAttribute('aria-selected',t.dataset.v===S.view));
   const m=$('#main');
   if(S.view==='trending'){
     let h=chips([['all','All'],...LEAGUES.map(l=>[l.k,l.n])],S.league,'league');
     h+=`<div class="seg"><button data-act="tsub" data-v="plays" aria-pressed="${S.tsub==='plays'}">Top plays</button><button data-act="tsub" data-v="stories" aria-pressed="${S.tsub==='stories'}">Stories</button>
-      <button class="chip" style="margin-left:auto;font-family:Barlow" data-act="hide" aria-pressed="${S.hideSeen}">Hide watched</button></div>`;
-    const fl=it=>(S.league==='all'||it.lg===S.league)&&!(S.hideSeen&&seen[it.id]);
+      <span style="margin-left:auto;display:flex;gap:6px">${S.tsub==='plays'?`<button class="chip" data-act="auto" aria-pressed="${S.autoplay}">Autoplay</button>`:''}<button class="chip" data-act="hide" aria-pressed="${S.hideSeen}">Hide watched</button></span></div>`;
     if(S.tsub==='plays'){
-      const list=S.plays.filter(fl).slice(0,30);
-      h+=`<p class="note">The 30 most-shared clips from the last 24 hours, ranked by upvotes across sports communities. Includes clips posted from X, TikTok, Instagram and YouTube.</p>`;
-      if(S.redditFail&&!S.plays.length)h+=`<div class="empty"><b>Reddit didn't answer.</b> It sometimes blocks requests for a few minutes. Tap Refresh, or wait for the next automatic check.</div>`;
-      else if(!list.length)h+=`<div class="empty">${S.last?'Nothing left here. Turn off Hide watched or pick another league.':'Loading clips…'}</div>`;
-      else h+='<ol class="list">'+list.map((it,i)=>`<li><button class="play${seen[it.id]?' watched':''}" data-act="playR" data-id="${it.id}">
-        <span class="rank${i<3?' top':''}">${i+1}</span>${thumbHTML(it.thumb,it.dur)}
-        <span><span class="ttl">${esc(it.title)}</span>${metaRow(it,`<span>${fmtN(it.score)} upvotes</span>`)}</span></button></li>`).join('')+'</ol>';
+      h+=`<p class="note">${esc(sourceNote())}</p>`;
+      const fl=it=>(S.league==='all'||it.lg===S.league)&&!(S.hideSeen&&seen[it.id]);
+      const vp=viralPick(fl);
+      F.list=feedList(fl,vp?.it?.id);F.shown=0;
+      if(vp)h+=`<section class="viral"><h3>Most viral right now</h3>${postHTML(vp.it,vp.why)}</section>`;
+      if(!vp&&!F.list.length)h+=`<div class="empty">${S.loading?'Finding today\'s clips…':S.espnFail&&!S.yt.length?'<b>No connection to ESPN.</b> Check your signal and tap Refresh.':'Nothing left here. Turn off Hide watched or pick another league.'}</div>`;
+      h+='<div id="feed"></div><div class="more" id="sentinel"></div>';
+      resetFeed();m.innerHTML=h;F.byId=Object.fromEntries([...(vp?[vp.it]:[]),...F.list].map(i=>[i.id,i]));
+      appendPosts();observeAll();$('#newpill').classList.remove('show');S.pending=false;
+      return;
     }else{
+      const fl=it=>(S.league==='all'||it.lg===S.league)&&!(S.hideSeen&&seen[it.id]);
       const talk=S.talk.filter(fl).slice(0,20),news=S.news.filter(fl).slice(0,30);
-      h+=`<h2>Most talked about</h2><p class="note" style="padding-left:16px">Biggest conversations today, by comment count.</p>`;
-      h+=talk.length?'<ul class="list">'+talk.map(it=>`<li><button class="story${seen[it.id]?' watched':''}" data-act="story" data-id="${it.id}"><span><span class="ttl">${esc(it.title)}</span>${metaRow(it,`<span>${fmtN(it.comments)} comments</span>`)}</span>${thumbHTML(it.thumb)}</button></li>`).join('')+'</ul>'
-        :`<div class="empty">${S.redditFail?'Reddit didn\'t answer. Tap Refresh.':'No conversations yet.'}</div>`;
       h+=`<h2>Latest headlines</h2>`;
       h+=news.length?'<ul class="list">'+news.map(it=>`<li><button class="story${seen[it.id]?' watched':''}" data-act="story" data-id="${it.id}"><span><span class="ttl">${esc(it.title)}</span>${it.desc?`<span class="desc">${esc(it.desc)}</span>`:''}${metaRow(it)}</span>${thumbHTML(it.thumb)}</button></li>`).join('')+'</ul>'
-        :`<div class="empty">${S.newsFail?'ESPN didn\'t answer. Tap Refresh.':'No headlines yet.'}</div>`;
+        :`<div class="empty">${S.loading?'Loading headlines…':'ESPN didn\'t answer. Tap Refresh.'}</div>`;
+      if(talk.length){h+=`<h2>Most talked about</h2>`;
+        h+='<ul class="list">'+talk.map(it=>`<li><button class="story${seen[it.id]?' watched':''}" data-act="story" data-id="${it.id}"><span><span class="ttl">${esc(it.title)}</span>${metaRow(it,`<span>${fmtN(it.comments)} comments</span>`)}</span>${thumbHTML(it.thumb)}</button></li>`).join('')+'</ul>';}
     }
     m.innerHTML=h;
   }else{
@@ -273,11 +342,76 @@ function render(){
       const open=S.open===gm.id;let clips='';
       if(open){const v=S.vids[gm.id];
         clips=!v?'<div class="empty" style="padding-top:0">Loading highlights…</div>':v==='error'?'<div class="empty" style="padding-top:0">Couldn\'t load clips. Tap the game again.</div>':!v.length?`<div class="empty" style="padding-top:0">${gm.state==='pre'?'Highlights show up once the game starts.':'ESPN hasn\'t posted clips for this game yet.'}</div>`
-          :'<div class="clips">'+v.map(c=>`<button class="clip${seen[c.id]?' watched':''}" data-act="playV" data-g="${gm.id}" data-id="${c.id}">${thumbHTML(c.thumb,c.dur)}<span class="ttl">${isNew(c.id)?'<span class="new">New</span> ':''}${esc(c.title)}</span></button>`).join('')+'</div>';}
+          :'<div class="clips">'+v.map(c=>`<button class="clip${seen[c.id]?' watched':''}" data-act="play" data-id="${c.id}">${thumbHTML(c.thumb,c.dur)}<span class="ttl">${isNew(c.id)?'<span class="new">New</span> ':''}${esc(c.title)}</span></button>`).join('')+'</div>';}
       return `<div class="game"><button class="gbtn" data-act="game" data-id="${gm.id}" aria-expanded="${open}"><span>${a?row(a):''}${b?row(b):''}</span><span class="gstate${gm.state==='in'?' live':''}">${gm.state==='in'?'Live<br>':''}${esc(gm.detail)}</span></button>${clips}</div>`;
     }).join('');
     m.innerHTML=h;
   }
+}
+
+
+/* ---------- Scrolling feed with inline players ---------- */
+const F={list:[],shown:0,byId:{},active:null,manual:false,ratios:new Map(),hls:new Map(),seenT:null};
+const hrsAgo=t=>ago(t).replace(' ago','');
+function viralPick(fl){
+  const now=Date.now();
+  const yt=S.yt.filter(fl).filter(v=>now-v.created<36*36e5).map(v=>({v,s:v.views/Math.max(1,(now-v.created)/36e5)})).sort((a,b)=>b.s-a.s)[0];
+  if(yt)return {it:yt.v,why:`${fmtN(yt.v.views)} views in ${hrsAgo(yt.v.created)}`};
+  const r=S.reddit.filter(fl)[0];if(r)return {it:r,why:`${fmtN(r.score)} upvotes today`};
+  const e=S.espn.filter(fl)[0];if(e)return {it:e,why:e.game||'Top ESPN clip'};
+  return null;
+}
+function feedList(fl,skip){
+  const lists=[S.yt.filter(fl),S.espn.filter(fl),S.reddit.filter(fl)].map(l=>l.filter(i=>i.id!==skip)).filter(l=>l.length);
+  const out=[],idx=lists.map(()=>0);
+  while(lists.some((l,i)=>idx[i]<l.length))for(let i=0;i<lists.length;i++)if(idx[i]<lists[i].length)out.push(lists[i][idx[i]++]);
+  return out;
+}
+function statText(it){return it.views!=null?`${fmtN(it.views)} views`:it.score!=null?`${fmtN(it.score)} upvotes, ${fmtN(it.comments||0)} comments`:it.game?esc(it.game):''}
+function origOf(it){const u=it.permalink||it.url;return u?{u,l:it.permalink?'Reddit':it.vid?'YouTube':'ESPN'}:null}
+function tapHTML(it){return `<button class="tap" data-act="mplay" data-id="${it.id}" aria-label="Play">${it.thumb?`<img src="${esc(it.thumb)}" alt="" loading="lazy" referrerpolicy="no-referrer">`:''}${it.dur?`<span class="dur">${dur(it.dur)}</span>`:''}<div class="playicon"><span></span></div></button>`}
+function postHTML(it,why){
+  const who=it.channel||it.src||'';const o=origOf(it);
+  return `<article class="post${seen[it.id]?' watched':''}"><div class="phead"><span class="avatar">${esc(who.charAt(0)||'?')}</span><b>${esc(who)}</b>${it.lg&&it.lg!=='all'?`<span>${esc(LG[it.lg]?.n)}</span>`:''}<span>${ago(it.created)}</span>${isNew(it.id)?'<span class="new">New</span>':''}</div>
+  <p class="ptext">${esc(it.title)}</p><div class="media" data-id="${it.id}">${tapHTML(it)}</div>
+  <div class="pfoot"><span>${why?esc(why):statText(it)}</span>${o?`<a href="${esc(o.u)}" target="_blank" rel="noopener">Open on ${o.l}</a>`:''}</div></article>`;
+}
+function appendPosts(){
+  const feed=$('#feed');if(!feed)return;const next=F.list.slice(F.shown,F.shown+12);
+  feed.insertAdjacentHTML('beforeend',next.map(i=>postHTML(i)).join(''));F.shown+=next.length;
+  $('#sentinel').textContent=F.shown<F.list.length?'Loading more…':F.list.length?'You\'re all caught up. New clips show up as they trend.':'';
+}
+const io=new IntersectionObserver(ents=>{ents.forEach(e=>F.ratios.set(e.target,e.intersectionRatio));pickActive()},{threshold:[0,.25,.6,.9,1]});
+const io2=new IntersectionObserver(ents=>{if(ents.some(e=>e.isIntersecting)&&F.shown<F.list.length){appendPosts();observeAll()}},{rootMargin:'800px'});
+function observeAll(){document.querySelectorAll('.media:not([data-obs])').forEach(m=>{m.dataset.obs=1;io.observe(m)});const se=$('#sentinel');if(se)io2.observe(se)}
+function resetFeed(){if(F.active)unmount(F.active);io.disconnect();io2.disconnect();F.ratios.clear();F.active=null;F.manual=false}
+function autoOK(it){const e=embedFor(it);return e&&(e.type!=='iframe'||/youtube\.com\/embed|streamable\.com/.test(e.src))}
+function pickActive(){
+  if($('#sheet').classList.contains('open'))return;
+  if(F.active&&(!F.active.isConnected||(F.ratios.get(F.active)||0)<0.25)){unmount(F.active)}
+  if(!S.autoplay||(F.active&&F.manual))return;
+  let best=null,br=0;for(const [el,r] of F.ratios)if(el.isConnected&&r>br){best=el;br=r}
+  if(best&&br>=0.6&&best!==F.active){const it=F.byId[best.dataset.id];if(it&&autoOK(it)){if(F.active)unmount(F.active);mount(best,it,true,false)}}
+}
+function mount(el,it,muted,manual){
+  const e=embedFor(it);
+  if(!e){markSeen(it.id);window.open(it.permalink||it.url,'_blank','noopener');return}
+  if(F.active&&F.active!==el)unmount(F.active);
+  el.classList.toggle('tall',!!e.tall);
+  if(e.type==='iframe'){let src=e.src;if(muted&&/youtube/.test(src))src+='&mute=1';if(muted&&/streamable/.test(src))src+='&muted=1';
+    el.innerHTML=`<iframe src="${esc(src)}" allow="autoplay; encrypted-media; fullscreen; picture-in-picture" allowfullscreen></iframe>`}
+  else{el.innerHTML='<video controls playsinline autoplay loop></video>';const v=el.querySelector('video');v.muted=muted;
+    const fb=()=>{if(e.fb&&v.src!==e.fb)v.src=e.fb};
+    if(e.type==='video')v.src=e.src;else if(v.canPlayType('application/vnd.apple.mpegurl'))v.src=e.src;
+    else if(window.Hls&&Hls.isSupported()){const h=new Hls();h.loadSource(e.src);h.attachMedia(v);F.hls.set(el,h);h.on(Hls.Events.ERROR,(_,d)=>{if(d.fatal){h.destroy();F.hls.delete(el);fb()}})}else fb();
+    v.addEventListener('error',fb);v.play?.().catch(()=>{})}
+  F.active=el;F.manual=manual;clearTimeout(F.seenT);
+  F.seenT=setTimeout(()=>{if(F.active===el){markSeen(it.id);el.closest('.post')?.classList.add('watched')}},manual?0:3000);
+}
+function unmount(el){
+  const h=F.hls.get(el);if(h){h.destroy();F.hls.delete(el)}
+  const it=F.byId[el.dataset.id];if(el.isConnected&&it){el.innerHTML=tapHTML(it);el.classList.remove('tall')}
+  if(F.active===el){F.active=null;F.manual=false}
 }
 
 /* ---------- Player ---------- */
@@ -285,18 +419,20 @@ let hls=null;
 function embedFor(it){
   const u=it.url||'';let m;
   if(it.mp4)return {type:'video',src:it.mp4};
-  if(it.rv)return {type:'hls',src:it.rv.hls_url,fb:it.rv.fallback_url,tall:it.rv.height>it.rv.width};
+  if(it.vid)return {type:'iframe',src:`https://www.youtube.com/embed/${it.vid}?autoplay=1&playsinline=1&rel=0`};
+  if(it.rv?.hls_url)return {type:'hls',src:it.rv.hls_url,fb:it.rv.fallback_url,tall:it.rv.height>it.rv.width};
   if(m=u.match(/streamable\.com\/(?:[eo]\/)?([a-z0-9]+)/i))return {type:'iframe',src:`https://streamable.com/e/${m[1]}?autoplay=1`};
-  if(m=u.match(/(?:youtu\.be\/|[?&]v=|shorts\/)([\w-]{11})/))return {type:'iframe',src:`https://www.youtube.com/embed/${m[1]}?autoplay=1&playsinline=1`,tall:/shorts\//.test(u)};
+  if(m=u.match(/(?:youtu\.be\/|[?&]v=|shorts\/)([\w-]{11})/))return {type:'iframe',src:`https://www.youtube.com/embed/${m[1]}?autoplay=1&playsinline=1&rel=0`,tall:/shorts\//.test(u)};
   if(m=u.match(/(?:twitter|x|fxtwitter|vxtwitter)\.com\/\w+\/status\/(\d+)/))return {type:'iframe',src:`https://platform.twitter.com/embed/Tweet.html?id=${m[1]}&theme=dark&dnt=true`,tall:true};
   if(m=u.match(/tiktok\.com\/.*?video\/(\d+)/))return {type:'iframe',src:`https://www.tiktok.com/embed/v2/${m[1]}`,tall:true};
   if(m=u.match(/instagram\.com\/(?:[\w.]+\/)?(p|reel|reels)\/([\w-]+)/))return {type:'iframe',src:`https://www.instagram.com/${m[1]==='p'?'p':'reel'}/${m[2]}/embed`,tall:true};
   return null;
 }
 function openPlayer(it){
+  if(F.active)unmount(F.active);
   markSeen(it.id);
   const e=embedFor(it);const orig=it.permalink||it.url;
-  if(!e){window.open(it.url||orig,'_blank','noopener');render();return}
+  if(!e){window.open(orig,'_blank','noopener');render();return}
   const st=$('#stage');st.className='stage'+(e.tall?' tall':'');$('#pwarn').textContent='';
   if(e.type==='iframe')st.innerHTML=`<iframe src="${esc(e.src)}" allow="autoplay; encrypted-media; fullscreen; picture-in-picture" allowfullscreen></iframe>`;
   else{
@@ -308,7 +444,9 @@ function openPlayer(it){
     else fallback();
     v.addEventListener('error',fallback);
   }
-  $('#ptitle').textContent=it.title;$('#porig').href=orig;$('#porig').textContent=it.permalink?'Open on Reddit':'Open on ESPN';
+  $('#ptitle').textContent=it.title;$('#porig').href=orig;
+  $('#porig').textContent=it.permalink?'Open on Reddit':it.vid?'Open on YouTube':'Open on ESPN';
+  $('#porig').style.display=orig?'':'none';
   $('#sheet').classList.add('open');document.body.style.overflow='hidden';
 }
 function closePlayer(){if(hls){hls.destroy();hls=null}$('#stage').innerHTML='';$('#sheet').classList.remove('open');document.body.style.overflow='';render()}
@@ -319,32 +457,39 @@ document.addEventListener('click',async ev=>{
   if(a==='closebg'&&ev.target!==b)return;
   if(a==='close'||a==='closebg')return closePlayer();
   if(a==='refresh')return refresh(true);
-  if(a==='view'){S.view=v;render();if(v==='highlights'){await loadGames();render()}return}
-  if(a==='league'){S.league=v;return render()}
+  if(a==='view'){S.view=v;resetFeed();render();if(v==='highlights'){await loadGames();render()}return}
+  if(a==='league'){S.league=v;window.scrollTo({top:0});return render()}
   if(a==='tsub'){S.tsub=v;return render()}
+  if(a==='auto'){S.autoplay=!S.autoplay;store.set('nr_auto',S.autoplay);b.setAttribute('aria-pressed',S.autoplay);if(!S.autoplay&&F.active&&!F.manual)unmount(F.active);else pickActive();return}
+  if(a==='mplay'){const el=b.closest('.media');const it=F.byId[b.dataset.id];if(el&&it)mount(el,it,false,true);return}
+  if(a==='shownew'){window.scrollTo({top:0});return render()}
   if(a==='hide'){S.hideSeen=!S.hideSeen;store.set('nr_hide',S.hideSeen);return render()}
   if(a==='hl'){S.hl=v;S.open=null;store.set('nr_hl',v);render();await loadGames();return render()}
   if(a==='day'){S.date=new Date(S.date.getFullYear(),S.date.getMonth(),S.date.getDate()+(+v));S.open=null;render();await loadGames();return render()}
   if(a==='game'){const id=b.dataset.id;S.open=S.open===id?null:id;render();if(S.open){if(S.vids[id]==='error')delete S.vids[id];await loadVids(id);store.set('nr_known',known);render()}return}
-  if(a==='playR'){const it=S.plays.find(x=>x.id===b.dataset.id);if(it)openPlayer(it);return}
-  if(a==='playV'){const it=(S.vids[b.dataset.g]||[]).find(x=>x.id===b.dataset.id);if(it)openPlayer(it);return}
-  if(a==='story'){const it=[...S.talk,...S.news].find(x=>x.id===b.dataset.id);if(it){markSeen(it.id);window.open(it.permalink||it.url,'_blank','noopener');render()}}
+  if(a==='play'){const it=allItems().find(x=>x.id===b.dataset.id);if(it)openPlayer(it);return}
+  if(a==='story'){const it=allItems().find(x=>x.id===b.dataset.id);if(it){markSeen(it.id);window.open(it.permalink||it.url,'_blank','noopener');render()}}
 });
 document.addEventListener('keydown',e=>{if(e.key==='Escape'&&$('#sheet').classList.contains('open'))closePlayer()});
 
 let running=false;
+function safeRender(){
+  if($('#sheet').classList.contains('open'))return;
+  const inFeed=S.view==='trending'&&S.tsub==='plays';
+  if(inFeed&&!S.loading&&(F.active||window.scrollY>300)){S.pending=true;$('#newpill').classList.add('show');return}
+  render();
+}
 async function refresh(manual){
   if(running)return;running=true;busy(true);
   try{
-    const jobs=[loadTrending(),loadNews()];
+    const jobs=[loadFeed().then(()=>{if(S.loading)safeRender()}),loadEspnPlays(),loadNews()];
     if(S.view==='highlights'||manual){
       if(isToday(S.date)||manual){delete S.games[S.hl+'_'+ymd(S.date)];jobs.push(loadGames(true))}
-      const g=S.games[S.hl+'_'+ymd(S.date)];
-      if(S.open&&(!Array.isArray(g)||g.find(x=>x.id===S.open)?.state!=='pre'))jobs.push(loadVids(S.open,true));
+      if(S.open)jobs.push(loadVids(S.open,true));
     }
     await Promise.allSettled(jobs);
     S.last=new Date();store.set('nr_known',known);
-  }finally{running=false;busy(false);if(!$('#sheet').classList.contains('open'))render()}
+  }finally{const first=S.loading;running=false;S.loading=false;busy(false);first||manual?(window.scrollTo({top:0}),render()):safeRender()}
 }
 setInterval(()=>{if(!document.hidden)refresh(false)},REFRESH_MIN*6e4);
 document.addEventListener('visibilitychange',()=>{if(!document.hidden&&S.last&&Date.now()-S.last>REFRESH_MIN*6e4)refresh(false)});
